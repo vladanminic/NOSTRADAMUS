@@ -51,17 +51,20 @@ READ_KEY = 'CHANGE_ME'    # Data retrieval
 
 ```
 nostradamus/python/
-├── main.py          # Main application
+├── main.py          # Interactive application for historical data
+├── live.py          # Automated script for live data sync
 ├── readme.md        # Documentation
 ```
 
 ## 🚀 Execution
 
+### Main Application (Interactive Mode)
+
 ```bash
 python main.py
 ```
 
-The application launches an interactive menu:
+The application launches an interactive menu for historical data processing:
 
 ```
 ============================================================
@@ -77,7 +80,37 @@ Q. Exit
 ============================================================
 ```
 
-## 📊 Operation Sequence
+### Live Data Processor (Automated Mode)
+
+```bash
+python live.py
+```
+
+The live processor runs automatically without user interaction and:
+- Detects existing collections or creates new ones
+- Checks the latest timestamp for each module on the server
+- Fetches only new data from the local database
+- Sends data to appropriate collections
+- Avoids sending duplicate records
+- Exits automatically after completion
+
+**Use cases:**
+- **Scheduled execution** (cron/Task Scheduler) for continuous data sync
+- **Real-time monitoring** - fetch and send recent data
+- **Automated pipelines** - no manual intervention required
+
+**Key differences from main.py:**
+
+| Feature | main.py | live.py |
+|---------|---------|---------|
+| Mode | Interactive menu | Automated execution |
+| Time period | User-defined date range | Automatic (from last server timestamp) |
+| User input | Required | None |
+| Use case | Historical data bulk import | Live/recent data sync |
+| Duplicate handling | Complex date range logic | Simple timestamp comparison |
+| Exit behavior | Manual exit (Q) | Automatic after completion |
+
+## 📊 Operation Sequence (main.py)
 
 ### 1️⃣ Setup Collections
 ```
@@ -113,16 +146,26 @@ Option: 5
 
 ## 📝 SQL Queries
 
-### PIS Query
-Retrieves aggregated sensor values for PIS stations with custom time periods:
+### main.py - Historical Data Queries
+Complex queries with custom date ranges and middle date handling for flexible time period selection:
+- Supports multiple time periods with `date_middle_1` and `date_middle_2`
+- Allows excluding specific date ranges
+- Used for bulk historical data import
+
+### live.py - Incremental Data Queries
+Simplified queries that fetch only new records:
+- Uses single `last_timestamp` parameter
+- Fetches data where `date > last_timestamp`
+- Optimized for real-time synchronization
+
+**PIS Sensors:**
 - Air temperature
 - Air humidity
 - Precipitation
 - Dew point
 - Leaf wetness
 
-### RHMZ Query
-Retrieves complete sensor set for RHMZ stations:
+**RHMZ Sensors:**
 - Air temperature and humidity
 - Pressure
 - Precipitation
@@ -189,15 +232,17 @@ Data is stored in the `data/` folder in JSONL format (one JSON object per line):
 
 ## 🔍 Key Functions
 
-| Function | Description |
-|----------|-------------|
-| `setup_collections()` | Initialize collections |
-| `fetch_lora_modules()` | Retrieve list of LoRa modules |
-| `fetch_module_data()` | Fetch module data from database |
-| `send_data_in_batches()` | Send data in batches |
-| `get_data()` | Query data from API |
-| `get_statistics()` | Retrieve statistics |
-| `delete_data()` | Delete data records |
+| Function | File | Description |
+|----------|------|-------------|
+| `setup_collections()` | Both | Initialize collections |
+| `fetch_lora_modules()` | Both | Retrieve list of LoRa modules |
+| `fetch_module_data()` | Both | Fetch module data from database |
+| `send_data_in_batches()` | Both | Send data in batches |
+| `get_data()` | Both | Query data from API |
+| `get_statistics()` | main.py | Retrieve statistics |
+| `delete_data()` | main.py | Delete data records |
+| `get_last_timestamp_for_module()` | live.py | Get latest timestamp for a module |
+| `process_and_send_live_data()` | live.py | Automated live data processing |
 
 ## ⚠️ Important Notes
 
@@ -205,6 +250,44 @@ Data is stored in the `data/` folder in JSONL format (one JSON object per line):
 2. **Time zones** - Uses UTC for all timestamps
 3. **Batch size** - Set to 2000 records for optimal performance
 4. **Excluded modules** - Specific modules can be excluded from processing
+
+## ⏰ Automated Scheduling (live.py)
+
+### Linux/macOS (cron)
+
+Edit crontab:
+```bash
+crontab -e
+```
+
+Run every hour:
+```cron
+0 * * * * cd /path/to/nostradamus/python && python3 live.py >> logs/live.log 2>&1
+```
+
+Run every 15 minutes:
+```cron
+*/15 * * * * cd /path/to/nostradamus/python && python3 live.py >> logs/live.log 2>&1
+```
+
+### Windows (Task Scheduler)
+
+Create a new task:
+1. Open Task Scheduler
+2. Create Basic Task → Name it "Nostradamus Live Sync"
+3. Trigger: Daily at 00:00, repeat every 1 hour
+4. Action: Start a program
+   - Program: `python`
+   - Arguments: `live.py`
+   - Start in: `C:\path\to\nostradamus\python`
+5. Finish
+
+Or use PowerShell:
+```powershell
+$action = New-ScheduledTaskAction -Execute "python" -Argument "live.py" -WorkingDirectory "C:\path\to\nostradamus\python"
+$trigger = New-ScheduledTaskTrigger -Daily -At 00:00 -RepetitionInterval (New-TimeSpan -Hours 1)
+Register-ScheduledTask -TaskName "NostradamusLiveSync" -Action $action -Trigger $trigger
+```
 
 ## 🐛 Troubleshooting
 
@@ -234,7 +317,21 @@ For questions or issues, contact the development team.
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: 2025-12-30  
-**Status**: Active ✅  
+**Version**: 1.1
+**Last Updated**: 2026-02-03
+**Status**: Active ✅
 **Author**: Vladan Minić - BioSense Institute
+
+## 📝 Changelog
+
+### Version 1.1 (2026-02-03)
+- ✨ Added `live.py` - automated script for live data synchronization
+- 📖 Enhanced documentation with scheduling examples
+- 🔄 Simplified queries for incremental data sync
+- ⚡ Optimized for real-time monitoring
+
+### Version 1.0 (2025-12-30)
+- 🎉 Initial release with `main.py`
+- 📊 Interactive menu for historical data processing
+- 🗄️ PostgreSQL database integration
+- 🌐 Nostradamus IoT API integration
